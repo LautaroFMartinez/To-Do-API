@@ -1,4 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Task } from './entities/task.entity';
 import { Repository } from 'typeorm';
@@ -10,8 +15,6 @@ export class TasksService {
   constructor(
     @InjectRepository(Task)
     private readonly taskRepository: Repository<Task>,
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
   ) {}
 
   async create(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
@@ -33,12 +36,12 @@ export class TasksService {
 
   async findTaskById(id: string): Promise<Task> {
     if (!id) {
-      throw new Error('Task ID is required');
+      throw new BadRequestException('Task ID is required');
     }
 
     const result = await this.taskRepository.findOneBy({ id });
     if (!result) {
-      throw new Error(`Task with ID ${id} not found`);
+      throw new NotFoundException(`Task with ID ${id} not found`);
     }
     return result;
   }
@@ -67,19 +70,15 @@ export class TasksService {
       where: { id: taskId },
       relations: ['user'],
     });
-    const userEntity = await this.userRepository.findOne({
-      where: { id: user.id },
-    });
-    console.log(
-      '🚀 ~ TasksService ~ verifyOwnershipOrAdmin ~ userEntity:',
-      userEntity,
-    );
+
     if (!task) {
-      throw new Error(`Task with ID ${taskId} not found`);
+      throw new NotFoundException(`Task with ID ${taskId} not found`);
     }
 
-    if (task.user.id !== user.id && (!userEntity || !userEntity.isAdmin)) {
-      throw new Error('You do not have permission to access this task');
+    if (task.user.id !== user.id && !user.isAdmin) {
+      throw new ForbiddenException(
+        'You do not have permission to access this task',
+      );
     }
 
     return task;

@@ -1,6 +1,5 @@
+import { User } from '../entities/user.entity';
+
 export interface RequestWithUser extends Request {
-  user?: {
-    id: string;
-    email: string;
-  };
+  user?: User;
 }
