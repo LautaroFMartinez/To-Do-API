@@ -1,5 +1,6 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { TaskStatus } from '../enum/TaskStatus.enum';
+import { User } from 'src/modules/auth/entities/user.entity';
 
 @Entity('tasks')
 export class Task {
@@ -24,4 +25,7 @@ export class Task {
 
   @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   updatedAt: Date;
+
+  @ManyToOne(() => User, (user) => user.tasks, { eager: true })
+  user: User;
 }

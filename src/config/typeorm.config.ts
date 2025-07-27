@@ -17,7 +17,8 @@ export const typeOrmConfigAsync: TypeOrmModuleAsyncOptions = {
       database: configService.get<string>('DB_NAME') || 'todo_api',
       autoLoadEntities: true,
       synchronize: true,
-      // entities: ['dist/**/*.entity{.ts,.js}', 'src/**/*.entity{.ts,.js}'],
+      // dropSchema: true,
+      entities: [__dirname + '/../**/*.entity{.ts,.js}'],
     };
     return config;
   },
