@@ -17,21 +17,54 @@ export class TasksService {
     private readonly taskRepository: Repository<Task>,
   ) {}
 
+  // Remove isAdmin, isActive, password from user in task
+  private sanitizeTask(task: Task): Task {
+    if (task.user) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { password, isActive, isAdmin, ...safeUserData } = task.user;
+      task.user = safeUserData as User;
+    }
+    return task;
+  }
+
+  private sanitizeTasks(tasks: Task[]): Task[] {
+    return tasks.map((task) => this.sanitizeTask(task));
+  }
+
   async create(createTaskDto: CreateTaskDto, user: User): Promise<Task> {
     const task = this.taskRepository.create({
       ...createTaskDto,
-      user,
+      user: { id: user.id },
     });
-    return this.taskRepository.save(task);
+    const savedTask = await this.taskRepository.save(task);
+
+    const result = await this.taskRepository.findOne({
+      where: { id: savedTask.id },
+      relations: ['user'],
+    });
+
+    if (!result) {
+      throw new NotFoundException('Failed to create task');
+    }
+
+    return this.sanitizeTask(result);
   }
 
   async findTasks(user: User): Promise<Task[]> {
+    let tasks: Task[];
+
     if (user.isAdmin) {
-      return this.taskRepository.find();
+      tasks = await this.taskRepository.find({
+        relations: ['user'],
+      });
+    } else {
+      tasks = await this.taskRepository.find({
+        where: { user: { id: user.id } },
+        relations: ['user'],
+      });
     }
-    return this.taskRepository.find({
-      where: { user: { id: user.id } },
-    });
+
+    return this.sanitizeTasks(tasks);
   }
 
   async findTaskById(id: string): Promise<Task> {
@@ -53,7 +86,18 @@ export class TasksService {
   ): Promise<Task> {
     const task = await this.verifyOwnershipOrAdmin(id, user);
     Object.assign(task, updateTaskDto);
-    return this.taskRepository.save(task);
+    await this.taskRepository.save(task);
+
+    const result = await this.taskRepository.findOne({
+      where: { id: task.id },
+      relations: ['user'],
+    });
+
+    if (!result) {
+      throw new NotFoundException('Failed to update task');
+    }
+
+    return this.sanitizeTask(result);
   }
 
   async removeTask(id: string, user: User): Promise<{ message: string }> {
